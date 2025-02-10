@@ -1,0 +1,66 @@
+local sourcePrefix = "projecte:condenser_mk2_"
+local destination = "projecte:condenser_mk2_2"
+local filterItem = "minecraft:blaze_rod"
+local minStackSize = 64*2
+
+local function getSourceInventories()
+    local sources = {}
+    local allPeripherals = peripheral.getNames()
+    print("Detected Peripherals:")
+    for _, name in ipairs(allPeripherals) do
+        print(" - " .. name)
+        if string.find(name, sourcePrefix) then
+            table.insert(sources, name)
+        end
+    end
+    
+    return sources
+end
+
+local sourceInventories = getSourceInventories()
+
+if #sourceInventories == 0 then
+    error("No source inventories found!")
+end
+
+if not peripheral.isPresent(destination) then
+    error("No destination inventory found!")
+end
+
+local destInv = peripheral.wrap(destination)
+
+local function transferItems()
+    for _, source in ipairs(sourceInventories) do 
+        local inv = peripheral.wrap(source)
+        local items = inv.list()
+        local totalBlazeRods = 0
+        local blazeRodSlots = {}
+        
+        for slot, item in pairs(items) do 
+            if item.name == filterItem then
+                totalBlazeRods = totalBlazeRods + item.count
+                table.insert(blazeRodSlots, { slot = slot, count = item.count })
+            end
+        end
+        
+        if totalBlazeRods > minStackSize then
+            local excess = totalBlazeRods - minStackSize
+            
+            for _, slotData in ipairs(blazeRodSlots) do
+                if excess <= 0 then break end
+                
+                local transferAmount = math.min(slotData.count, excess)
+                local transferred = inv.pushItems(destination, slotData.slot, transferAmount)
+                print("Transferred " .. transferred .. " Blaze Rods from " .. source .. " slot " .. slotData.slot)
+                
+                excess = excess - transferred
+            end
+        end
+    end
+end
+
+while true do
+    transferItems()
+    sleep(2)
+end
+
